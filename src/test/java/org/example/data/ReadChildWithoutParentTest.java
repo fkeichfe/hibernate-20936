@@ -1,7 +1,6 @@
 package org.example.data;
 
 import org.hibernate.cfg.AvailableSettings;
-import org.hibernate.testing.bytecode.enhancement.extension.BytecodeEnhanced;
 import org.hibernate.testing.orm.junit.*;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -30,7 +29,6 @@ import java.util.UUID;
 )
 @JiraKey(value = "HHH-20936")
 @SessionFactory
-@BytecodeEnhanced
 class ReadChildWithoutParentTest {
 
     @Test
@@ -44,10 +42,6 @@ class ReadChildWithoutParentTest {
             }
         });
         scope.inTransaction(session -> {
-            // read-only mode, together with "hibernate.max_fetch_depth" and "hibernate.default_batch_fetch_size",
-            // will throw a null pointer exception
-            session.setDefaultReadOnly(true);
-
             // test works with all hibernate versions, as hibernate generates a left join
             final List<Child> result1 = session.createQuery("select c from Child c where c.parent is null", Child.class).getResultList();
             Assertions.assertEquals(childrenWithoutParents, result1.size());

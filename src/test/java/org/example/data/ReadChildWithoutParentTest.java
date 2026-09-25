@@ -24,8 +24,6 @@ import java.util.UUID;
 @ServiceRegistry(
         // Add in any settings that are specific to your test.  See resources/hibernate.properties for the defaults.
         settings = {
-                @Setting(name = AvailableSettings.DEFAULT_BATCH_FETCH_SIZE, value = "4"),
-                @Setting(name = AvailableSettings.MAX_FETCH_DEPTH, value = "1"),
                 @Setting( name = AvailableSettings.JAKARTA_JDBC_URL, value = "jdbc:h2:mem:db1;DB_CLOSE_DELAY=-1" ),
                 @Setting(name = AvailableSettings.SHOW_SQL, value = "true")
         }
@@ -37,9 +35,6 @@ class ReadChildWithoutParentTest {
 
     @Test
     void hhh20936Test(final SessionFactoryScope scope) {
-        // this value has been computed as (DEFAULT_BATCH_FETCH_SIZE / 2) + 1,
-        // since, to trigger the issue, it is required to load the entities in
-        // two different sub-queries
         final int childrenWithoutParents = 3;
         scope.inTransaction(session -> {
             for (int i = 0; i < childrenWithoutParents; i++) {

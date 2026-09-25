@@ -1,0 +1,65 @@
+package org.example.data;
+
+import org.hibernate.cfg.AvailableSettings;
+import org.hibernate.testing.bytecode.enhancement.extension.BytecodeEnhanced;
+import org.hibernate.testing.orm.junit.*;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * This template demonstrates how to develop a test case for Hibernate ORM, using its built-in unit test framework.
+ * <p>
+ * What's even better?  Fork hibernate-orm itself, add your test case directly to a module's unit tests, then
+ * submit it as a PR!
+ */
+@DomainModel(
+        annotatedClasses = {
+                Child.class,
+                Parent.class,
+        }
+)
+@ServiceRegistry(
+        // Add in any settings that are specific to your test.  See resources/hibernate.properties for the defaults.
+        settings = {
+                @Setting(name = AvailableSettings.DEFAULT_BATCH_FETCH_SIZE, value = "4"),
+                @Setting(name = AvailableSettings.MAX_FETCH_DEPTH, value = "1"),
+                @Setting( name = AvailableSettings.JAKARTA_JDBC_URL, value = "jdbc:h2:mem:db1;DB_CLOSE_DELAY=-1" ),
+                @Setting(name = AvailableSettings.SHOW_SQL, value = "true")
+        }
+)
+@JiraKey(value = "HHH-20936")
+@SessionFactory
+@BytecodeEnhanced
+class ReadChildWithoutParentTest {
+
+    @Test
+    void hhh20936Test(final SessionFactoryScope scope) {
+        // this value has been computed as (DEFAULT_BATCH_FETCH_SIZE / 2) + 1,
+        // since, to trigger the issue, it is required to load the entities in
+        // two different sub-queries
+        final int childrenWithoutParents = 3;
+        scope.inTransaction(session -> {
+            for (int i = 0; i < childrenWithoutParents; i++) {
+                session.persist(
+                        new Child(UUID.randomUUID().toString())
+                );
+            }
+        });
+        scope.inTransaction(session -> {
+            // read-only mode, together with "hibernate.max_fetch_depth" and "hibernate.default_batch_fetch_size",
+            // will throw a null pointer exception
+            session.setDefaultReadOnly(true);
+
+            // test works with all hibernate versions, as hibernate generates a left join
+            final List<Child> result1 = session.createQuery("select c from Child c where c.parent is null", Child.class).getResultList();
+            Assertions.assertEquals(childrenWithoutParents, result1.size());
+
+            // test fails with hibernate >= 7.4.8, as hibernate generates a join
+            final List<Long> result2 = session.createQuery("select c.id from Child c where c.parent is null", Long.class).getResultList();
+            Assertions.assertEquals(childrenWithoutParents, result2.size());
+        });
+    }
+}
